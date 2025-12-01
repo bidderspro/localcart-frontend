@@ -16,15 +16,16 @@ export type LoginOption = {
 }
 
 const cardStyles: Record<LoginVariant, string> = {
-  dark: "border-white/10 bg-white/5 shadow-[0_30px_80px_rgba(0,0,0,0.35)] text-white",
+  dark:
+    "border-white/10 bg-white/10 shadow-[0_26px_80px_rgba(0,0,0,0.36)] text-white backdrop-blur-2xl",
   light:
-    "border-slate-900/8 bg-white/90 shadow-[0_30px_80px_rgba(15,23,42,0.12)] text-slate-900",
+    "border-slate-900/8 bg-white/95 shadow-[0_26px_70px_rgba(15,23,42,0.12)] text-slate-900",
 }
 
 const buttonStyles: Record<LoginVariant, string> = {
-  dark: "border-white/12 bg-white/5 text-white/90 hover:shadow-[0_15px_40px_rgba(67,198,245,0.18)] focus-visible:ring-[rgba(124,91,255,0.35)]",
+  dark: "border-white/12 bg-gradient-to-r from-white/10 to-white/5 text-white/90 hover:-translate-y-0.5 hover:shadow-[0_16px_48px_rgba(67,198,245,0.25)] focus-visible:ring-[rgba(124,91,255,0.35)]",
   light:
-    "border-slate-900/8 bg-white/90 text-slate-900 hover:bg-slate-50 hover:shadow-[0_12px_32px_rgba(15,23,42,0.12)] focus-visible:ring-[rgba(67,198,245,0.25)]",
+    "border-slate-900/8 bg-gradient-to-r from-white to-slate-50 text-slate-900 hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(15,23,42,0.12)] focus-visible:ring-[rgba(67,198,245,0.25)]",
 }
 
 export function LoginButton({

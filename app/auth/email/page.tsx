@@ -1,41 +1,70 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 
-import { LoginCard, MailIcon } from "@/components/ui/Login/LoginButton"
+const actions = [
+  {
+    title: "Email Login",
+    description: "Sign in with your credentials.",
+    href: "/auth/email/login",
+  },
+  {
+    title: "Create Account",
+    description: "Register a new account with email.",
+    href: "/auth/email/register",
+  },
+  {
+    title: "Forgot Password",
+    description: "Recover access using your email.",
+    href: "/auth/email/forgot-password",
+  },
+]
 
-export default function EmailAuthPage() {
-  const router = useRouter()
-
+export default function EmailAuthLanding() {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0A0F1C] px-4">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(67,198,245,0.22),transparent_38%),radial-gradient(circle_at_80%_30%,rgba(124,91,255,0.18),transparent_36%),radial-gradient(circle_at_50%_80%,rgba(52,224,161,0.18),transparent_40%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:120px_120px] opacity-[0.06]" />
-      </div>
+    <div className="flex min-h-screen items-center justify-center bg-[#eef2f5] px-4 py-12">
+      <div className="w-full max-w-3xl rounded-2xl bg-white p-10 shadow-[0_26px_70px_rgba(15,23,42,0.12)]">
+        <div className="flex items-center justify-between gap-6 flex-wrap">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">
+              Email access
+            </p>
+            <h1 className="text-3xl font-semibold text-slate-900">
+              Choose how you want to continue
+            </h1>
+            <p className="text-sm text-slate-600">
+              Log in, register a new account, or recover your password with a
+              dedicated flow.
+            </p>
+          </div>
+          <Link
+            href="/auth"
+            className="text-sm font-semibold text-sky-700 transition hover:text-sky-800"
+          >
+            Back to other methods
+          </Link>
+        </div>
 
-      <div className="relative z-10 w-full max-w-xl">
-        <LoginCard
-          title="Email Login"
-          subtitle="Enter your email to receive a magic link or code"
-          options={[
-            {
-              id: "start-email",
-              label: "Send magic link",
-              icon: <MailIcon />,
-              onClick: () => {
-                // TODO: plug in email auth flow
-              },
-            },
-          ]}
-          variant="dark"
-        />
-        <button
-          className="mt-4 text-sm text-white/70 underline decoration-white/30 underline-offset-4 transition hover:text-white"
-          onClick={() => router.push("/auth")}
-        >
-          Back to login
-        </button>
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          {actions.map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="group rounded-xl border border-slate-200 bg-slate-50/80 p-5 transition hover:-translate-y-1 hover:border-sky-200 hover:bg-white hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
+            >
+              <h2 className="text-lg font-semibold text-slate-900">
+                {action.title}
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">{action.description}</p>
+              <span className="mt-4 inline-flex items-center text-xs font-semibold uppercase tracking-wide text-sky-700">
+                Continue
+                <span className="ml-2 transition group-hover:translate-x-1">
+                  →
+                </span>
+              </span>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   )
