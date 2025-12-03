@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { authenticateEmail, markAuthenticated } from "@/lib/client-auth"
+import { fetchMe, loginEmail, saveTokensFromResponse } from "@/lib/api"
+import { markAuthenticated } from "@/lib/client-auth"
+import { pickUserRole, routeForRole } from "@/lib/roles"
 
 const emailRegex = /\S+@\S+\.\S+/
 
@@ -33,17 +35,32 @@ export default function EmailLoginPage() {
     if (!canSubmit) return
     setIsSubmitting(true)
     setError("")
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    try {
+      const response = await loginEmail({
+        email: email.trim(),
+        password: password.trim(),
+      })
 
-    const user = authenticateEmail(email, password)
-    if (!user) {
+      saveTokensFromResponse(response)
+
+      const me = await fetchMe()
+      const user = me ?? response?.user
+      if (!user) {
+        throw new Error("Unable to load your account profile. Please try again.")
+      }
+      const role = pickUserRole(user)
+      markAuthenticated(role, user.id)
+
+      router.push(routeForRole(role))
+    } catch (loginError: any) {
+      const message =
+        (loginError && typeof loginError === "object" && "message" in loginError
+          ? (loginError as { message?: string }).message
+          : null) || "Invalid email or password."
+      setError(message)
+    } finally {
       setIsSubmitting(false)
-      setError("Invalid email or password.")
-      return
     }
-
-    markAuthenticated(user.role ?? "admin", user.id)
-    router.push("/auth/roles")
   }
 
   return (

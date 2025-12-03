@@ -5,6 +5,8 @@ import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { applyForRole } from "@/lib/api"
+import { getAuthSession } from "@/lib/client-auth"
 
 export default function VendorApplicationPage() {
   const [businessName, setBusinessName] = useState("")
@@ -13,15 +15,40 @@ export default function VendorApplicationPage() {
   const [category, setCategory] = useState("")
   const [notes, setNotes] = useState("")
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const canSubmit = businessName.trim() && contactName.trim() && phone.trim()
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit) return
-    // TODO: send vendor application payload
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    setSubmitted(true)
+    const session = getAuthSession()
+    if (!session) {
+      setError("Please sign in before applying.")
+      return
+    }
+
+    setIsSubmitting(true)
+    setError("")
+    try {
+      await applyForRole("vendor", {
+        businessName: businessName.trim(),
+        contactName: contactName.trim(),
+        phone: phone.trim(),
+        category: category.trim(),
+        notes: notes.trim(),
+      })
+      setSubmitted(true)
+    } catch (err: any) {
+      const message =
+        (err && typeof err === "object" && "message" in err
+          ? (err as { message?: string }).message
+          : null) || "Unable to submit vendor application."
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -110,12 +137,16 @@ export default function VendorApplicationPage() {
 
           <Button
             type="submit"
-            disabled={!canSubmit}
+            disabled={!canSubmit || isSubmitting}
             className="w-full md:w-auto"
           >
-            {submitted ? "Submitted" : "Submit application"}
+            {isSubmitting ? "Submitting..." : submitted ? "Submitted" : "Submit application"}
           </Button>
         </form>
+
+        {error ? (
+          <div className="mt-4 text-sm text-rose-600">{error}</div>
+        ) : null}
 
         {submitted ? (
           <div className="mt-6 rounded-lg bg-sky-50 p-4 text-sm text-sky-700">

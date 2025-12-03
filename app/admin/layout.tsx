@@ -4,7 +4,9 @@ import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
-import { getAuthRole, isAuthenticated } from "@/lib/client-auth"
+import { fetchMe } from "@/lib/api"
+import { markAuthenticated } from "@/lib/client-auth"
+import { pickUserRole } from "@/lib/roles"
 
 export default function AdminLayout({
   children,
@@ -15,20 +17,25 @@ export default function AdminLayout({
   const [allowed, setAllowed] = useState(false)
 
   useEffect(() => {
-    const authed = isAuthenticated()
-    const role = getAuthRole()
-
-    if (!authed) {
-      router.replace("/auth")
-      return
+    const validate = async () => {
+      try {
+        const me = await fetchMe()
+        const role = pickUserRole(me)
+        if (!role) {
+          router.replace("/auth")
+          return
+        }
+        markAuthenticated(role, me?.id)
+        if (role !== "admin") {
+          router.replace("/auth/roles/admin")
+          return
+        }
+        setAllowed(true)
+      } catch {
+        router.replace("/auth")
+      }
     }
-
-    if (role !== "admin") {
-      router.replace("/auth/roles/admin")
-      return
-    }
-
-    setAllowed(true)
+    void validate()
   }, [router])
 
   if (!allowed) {

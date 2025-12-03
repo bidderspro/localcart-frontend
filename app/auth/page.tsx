@@ -1,5 +1,7 @@
 "use client"
 
+import { useRouter } from "next/navigation"
+
 import {
   GoogleIcon,
   LoginCard,
@@ -7,7 +9,7 @@ import {
   PhoneIcon,
   type LoginOption,
 } from "@/components/ui/Login/LoginButton"
-import { useRouter } from "next/navigation"
+import { getGoogleAuthUrl } from "@/lib/api"
 
 export default function AuthPage() {
   const router = useRouter()
@@ -17,7 +19,10 @@ export default function AuthPage() {
       id: "google",
       label: "Continue with Google",
       icon: <GoogleIcon />,
-      onClick: () => router.push("/auth/google/callback"),
+      onClick: () => {
+        // Redirect to backend Google auth endpoint
+        window.location.href = getGoogleAuthUrl()
+      },
     },
     {
       id: "phone",

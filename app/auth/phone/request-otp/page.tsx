@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PhoneIcon } from "@/components/ui/Login/LoginButton"
-import { authenticatePhone, setOtpForPhone } from "@/lib/client-auth"
+import { requestPhoneOtp } from "@/lib/api"
 
 export default function RequestOtpPage() {
   const router = useRouter()
@@ -44,21 +44,24 @@ export default function RequestOtpPage() {
     setIsSending(true)
     setStatus("")
     setError("")
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    const normalizedPhone = phone.trim()
 
-    const user = authenticatePhone(phone.trim())
-    if (!user) {
+    try {
+      const response = await requestPhoneOtp(normalizedPhone)
+      setStatus(response?.message ?? `OTP sent to ${normalizedPhone}`)
+      router.push(
+        `/auth/phone/verify-otp?phone=${encodeURIComponent(normalizedPhone)}`
+      )
+    } catch (error: any) {
+      const message =
+        (error && typeof error === "object" && "message" in error
+          ? (error as { message?: string }).message
+          : null) ||
+        "Unable to send OTP right now."
+      setError(message)
+    } finally {
       setIsSending(false)
-      setError("This phone is not registered. Please register first.")
-      return
     }
-
-    const code = `${Math.floor(100000 + Math.random() * 900000)}`
-    setOtpForPhone(phone.trim(), code)
-    setStatus(`OTP ${code} sent to ${phone.trim()}`)
-    router.push(
-      `/auth/phone/verify-otp?phone=${encodeURIComponent(phone.trim())}`
-    )
   }
 
   return (

@@ -6,21 +6,33 @@ import { useRouter, useSearchParams } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { authenticatePhone, clearOtpForPhone, getOtpForPhone, markAuthenticated } from "@/lib/client-auth"
+import {
+  fetchMe,
+  requestPhoneOtp,
+  saveTokensFromResponse,
+  verifyPhoneOtp,
+} from "@/lib/api"
+import { markAuthenticated } from "@/lib/client-auth"
+import { pickUserRole, routeForRole } from "@/lib/roles"
 
 export default function VerifyOtpPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const phone = searchParams.get("phone") ?? "your phone"
+  const phoneFromQuery = searchParams.get("phone") ?? ""
+  const phoneLabel = phoneFromQuery || "your phone"
   const codeFromQuery = searchParams.get("code")
+  const nameFromQuery = searchParams.get("name") ?? ""
 
   const [otp, setOtp] = useState("")
+  const [name, setName] = useState(nameFromQuery)
   const [status, setStatus] = useState("")
   const [error, setError] = useState("")
   const [resendTimer, setResendTimer] = useState(0)
   const [isVerifying, setIsVerifying] = useState(false)
   const [isResending, setIsResending] = useState(false)
-  const canSubmit = otp.trim().length >= 4
+  const otpDigits = otp.trim()
+  const nameValue = name.trim()
+  const canSubmit = otpDigits.length >= 6 && nameValue.length >= 2
 
   useEffect(() => {
     if (!resendTimer) return
@@ -34,7 +46,7 @@ export default function VerifyOtpPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit) {
-      setError("Enter the 4-6 digit code that was sent to you.")
+      setError("Enter the 6-digit code and your name.")
       return
     }
     setIsVerifying(true)
@@ -42,36 +54,65 @@ export default function VerifyOtpPage() {
     setError("")
     await new Promise((resolve) => setTimeout(resolve, 400))
 
-    const expected = getOtpForPhone(phone)
-    if (!expected) {
+    const normalizedPhone = phoneFromQuery.trim()
+    if (!normalizedPhone) {
       setIsVerifying(false)
-      setError("No OTP found for this phone. Request a new code.")
+      setError("Missing phone number. Request a new code.")
       return
     }
 
-    if (otp !== expected) {
-      setIsVerifying(false)
-      setError("Incorrect code. Try again.")
-      return
-    }
+    try {
+      const response = await verifyPhoneOtp({
+        phone: normalizedPhone,
+        code: otpDigits,
+        name: nameValue,
+      })
 
-    const user = authenticatePhone(phone)
-    clearOtpForPhone(phone)
-    setStatus("OTP verified. Redirecting...")
-    markAuthenticated(user?.role ?? "admin", user?.id)
-    router.push("/auth/roles")
+      saveTokensFromResponse(response)
+
+      const me = await fetchMe()
+      const user = me ?? response?.user
+      if (!user) {
+        throw new Error("Unable to load your account profile. Please try again.")
+      }
+      const role = pickUserRole(user)
+      markAuthenticated(role, user.id)
+
+      setStatus(response?.message ?? "OTP verified. Redirecting...")
+      router.push(routeForRole(role))
+    } catch (error: any) {
+      const message =
+        (error && typeof error === "object" && "message" in error
+          ? (error as { message?: string }).message
+          : null) || "Unauthorized. Please check the code and try again."
+      setError(message)
+    } finally {
+      setIsVerifying(false)
+    }
   }
 
   const handleResend = async () => {
     if (resendTimer > 0) return
+    if (!phoneFromQuery.trim()) {
+      setError("Missing phone number. Request a new code.")
+      return
+    }
     setIsResending(true)
     setStatus("")
     setError("")
-    // TODO: request OTP resend
-    await new Promise((resolve) => setTimeout(resolve, 700))
-    setIsResending(false)
-    setResendTimer(60)
-    setStatus("A new code was sent to your phone.")
+    try {
+      const response = await requestPhoneOtp(phoneFromQuery.trim())
+      setResendTimer(60)
+      setStatus(response?.message ?? "A new code was sent to your phone.")
+    } catch (error: any) {
+      const message =
+        (error && typeof error === "object" && "message" in error
+          ? (error as { message?: string }).message
+          : null) || "Unable to resend code right now."
+      setError(message)
+    } finally {
+      setIsResending(false)
+    }
   }
 
   useEffect(() => {
@@ -98,7 +139,7 @@ export default function VerifyOtpPage() {
               Enter the code we sent
             </h1>
             <p className="text-sm text-slate-600">
-              Please type the 4-6 digit code sent to {phone}.
+              Please type the 6-digit code sent to {phoneLabel}.
             </p>
           </div>
 
@@ -106,12 +147,20 @@ export default function VerifyOtpPage() {
             <Input
               type="text"
               inputMode="numeric"
-              placeholder="One-time password"
+              placeholder="6-digit code"
               value={otp}
               onChange={(event) =>
                 setOtp(event.target.value.replace(/[^0-9]/g, ""))
               }
               className="h-12 rounded-[12px] border-slate-300 bg-white text-center text-xl tracking-[0.6em] text-slate-900 placeholder:text-slate-400 focus-visible:ring-sky-200"
+            />
+
+            <Input
+              type="text"
+              placeholder="Your name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="h-12 rounded-[12px] border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:ring-sky-200"
             />
 
             <Button

@@ -1,27 +1,59 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { apiFetch } from "@/lib/api"
+import { getAuthSession } from "@/lib/client-auth"
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [sent, setSent] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const canSubmit = email.trim()
+  const passwordsMatch =
+    password.trim().length >= 8 && password.trim() === confirmPassword.trim()
+  const canSubmit = email.trim() && passwordsMatch
+
+  const helper = useMemo(() => {
+    if (!email.trim()) return ""
+    if (!passwordsMatch && confirmPassword) {
+      return "Passwords must match and be at least 8 characters."
+    }
+    return ""
+  }, [email, confirmPassword, passwordsMatch])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit) return
     setIsSubmitting(true)
-    // TODO: call password reset endpoint
-    await new Promise((resolve) => setTimeout(resolve, 700))
-    setSent(true)
-    setIsSubmitting(false)
+    try {
+      const session = getAuthSession()
+      if (!session) {
+        throw new Error("You must be signed in to reset your password.")
+      }
+
+        await apiFetch("/auth/password/reset", {
+          method: "POST",
+          requireAuth: true,
+          body: { password: password.trim() },
+        })
+        setSent(true)
+      } catch (err: any) {
+        const message =
+        (err && typeof err === "object" && "message" in err
+          ? (err as { message?: string }).message
+          : null) ||
+        "Unable to start password reset. Please sign in again."
+      alert(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleReturn = () => {
@@ -51,26 +83,56 @@ export default function ForgotPasswordPage() {
             <Input
               type="email"
               placeholder="you@example.com"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </div>
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </div>
 
-          <Button
-            type="submit"
-            disabled={!canSubmit || isSubmitting}
-            className="w-full"
-          >
-            {isSubmitting ? "Sending reset link..." : "Send reset link"}
-          </Button>
-        </form>
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-slate-700">
+            New password
+          </label>
+          <Input
+            type="password"
+            placeholder="At least 8 characters"
+            autoComplete="new-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </div>
 
-        {sent ? (
-          <div className="mt-4 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">
-            Reset link sent! Check your inbox to continue.
-          </div>
-        ) : null}
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-slate-700">
+            Confirm new password
+          </label>
+          <Input
+            type="password"
+            placeholder="Re-enter password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+          />
+        </div>
+
+        <Button
+          type="submit"
+          disabled={!canSubmit || isSubmitting}
+          className="w-full"
+        >
+          {isSubmitting ? "Sending reset link..." : "Send reset link"}
+        </Button>
+      </form>
+
+      {helper && !sent ? (
+        <div className="mt-4 text-sm text-rose-600">{helper}</div>
+      ) : null}
+
+      {sent ? (
+        <div className="mt-4 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">
+          Reset link sent! Check your inbox to continue.
+        </div>
+      ) : null}
 
         <div className="mt-6 flex items-center justify-between text-sm text-slate-600">
           <button

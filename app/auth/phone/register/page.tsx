@@ -55,7 +55,7 @@ export default function PhoneRegisterPage() {
     const code = `${Math.floor(100000 + Math.random() * 900000)}`
     setOtpForPhone(phone.trim(), code)
     router.push(
-      `/auth/phone/verify-otp?phone=${encodeURIComponent(phone.trim())}&code=${code}`
+      `/auth/phone/verify-otp?phone=${encodeURIComponent(phone.trim())}&code=${code}&name=${encodeURIComponent(fullName.trim())}`
     )
   }
 

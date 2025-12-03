@@ -4,20 +4,54 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
+import { useSearchParams } from "next/navigation"
+
+import {
+  apiFetch,
+  fetchMe,
+  getApiBaseUrl,
+  saveTokensFromResponse,
+} from "@/lib/api"
 import { markAuthenticated } from "@/lib/client-auth"
+import { pickUserRole, routeForRole } from "@/lib/roles"
 
 export default function GoogleCallbackPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [status, setStatus] = useState<"loading" | "success">("loading")
+  const [error, setError] = useState("")
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setStatus("success")
-      markAuthenticated("admin")
-      router.push("/auth/roles")
-    }, 1200)
-    return () => clearTimeout(timer)
-  }, [router])
+    const complete = async () => {
+      try {
+        const query = searchParams.toString()
+        const path = `/auth/google/callback${query ? `?${query}` : ""}`
+        const response = await apiFetch<any>(`${getApiBaseUrl()}${path}`)
+
+        saveTokensFromResponse(response)
+
+        const me = await fetchMe()
+        const user = me ?? response?.user
+        if (!user) {
+          throw new Error("Unable to load your account profile. Please try again.")
+        }
+        const role = pickUserRole(user)
+        markAuthenticated(role, user.id)
+
+        setStatus("success")
+        router.push(routeForRole(role))
+      } catch (err: any) {
+        const message =
+          (err && typeof err === "object" && "message" in err
+            ? (err as { message?: string }).message
+            : null) ||
+          "Unable to complete Google sign-in."
+        setError(message)
+        setStatus("loading")
+      }
+    }
+    void complete()
+  }, [router, searchParams])
 
   return (
     <div className="min-h-screen bg-white px-4 py-12">
@@ -43,6 +77,9 @@ export default function GoogleCallbackPage() {
               </span>
             </span>
           </div>
+          {error ? (
+            <p className="text-sm text-rose-600">{error}</p>
+          ) : null}
         </div>
 
         <div className="mt-6 text-center text-sm text-slate-700">

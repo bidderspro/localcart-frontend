@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { markAuthenticated, registerUser } from "@/lib/client-auth"
+import { fetchMe, registerEmail, saveTokensFromResponse } from "@/lib/api"
+import { markAuthenticated } from "@/lib/client-auth"
+import { pickUserRole, routeForRole } from "@/lib/roles"
 
 const emailRegex = /\S+@\S+\.\S+/
 
@@ -30,23 +32,36 @@ export default function EmailRegisterPage() {
     if (!canSubmit) return
     setIsSubmitting(true)
     setError("")
-    await new Promise((resolve) => setTimeout(resolve, 400))
-    const result = registerUser({
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      email: email.trim(),
-      password,
-      role: "admin",
-    })
+    try {
+      const response = await registerEmail({
+        name: name.trim(),
+        email: email.trim(),
+        password: password.trim(),
+      })
 
-    if (!result.ok) {
+      saveTokensFromResponse(response)
+
+      const me = await fetchMe()
+      const user = me ?? response?.user
+      if (!user) {
+        throw new Error("Unable to load your account profile. Please try again.")
+      }
+      const role = pickUserRole(user)
+      markAuthenticated(role, user.id)
+
+      router.push(routeForRole(role))
+    } catch (registerError: any) {
+      const message =
+        (registerError &&
+          typeof registerError === "object" &&
+          "message" in registerError
+          ? (registerError as { message?: string }).message
+          : null) ||
+        "Unable to register right now."
+      setError(message)
+    } finally {
       setIsSubmitting(false)
-      setError(result.error ?? "Unable to register right now.")
-      return
     }
-
-    markAuthenticated("admin")
-    router.push("/auth/roles")
   }
 
   return (
